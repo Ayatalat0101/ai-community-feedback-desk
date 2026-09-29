@@ -92,6 +92,7 @@ def process(conn: sqlite3.Connection, ref: str, classifier: Classifier = rule_cl
         a = assess(c.category, extract_facts(message), referred=True)
         t = update_ticket(conn, ref, "agent", "refer_confidential", detail,
                           status=Status.REFERRED, category=Category.SENSITIVE, priority=a.priority,
+                          category_reason=f"Referred by the guardrail: {label}",
                           priority_rule=f"{a.rule}: {a.rule_text}", restricted=True,
                           referral_reason=label, draft_response=None, missing=[], options=[])
         return Outcome(t, "refer_confidential")

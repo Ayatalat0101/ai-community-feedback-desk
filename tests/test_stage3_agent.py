@@ -156,6 +156,7 @@ def test_T6_T7_T8_referrals_have_no_draft_and_are_restricted(db, row_id):
     t = send(db, row_id).ticket
     assert (t["status"], t["priority"], t["category"], t["restricted"]) == ("referred", "Critical", "sensitive", True)
     assert t["draft_response"] is None
+    assert t["category_reason"].startswith("Referred by the guardrail")     # not the rule classifier's guess
 
 
 def test_T7_sensitive_message_never_reaches_the_classifier(db):
