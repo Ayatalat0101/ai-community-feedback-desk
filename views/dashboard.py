@@ -13,7 +13,10 @@ import pandas as pd
 import streamlit as st
 
 from feedback import agent
+from datetime import date
+
 from feedback.agent import FOCAL_POINT, OFFICER, ActionError
+from feedback.export import build_export, to_csv_bytes
 from feedback.models import Submission
 from feedback.store import counts, events_for, get_ticket, list_tickets, reset_all
 from ui import (CHANNEL_LABEL, CSS, PRIORITY_ICON, PRIORITY_RANK, STATUS_LABEL, distribution_card, get_conn,
@@ -53,6 +56,14 @@ m[1].metric("🔴 High open", c["high"])
 m[2].metric("📝 Drafts to review", c["drafts"])
 m[3].metric("⏳ Waiting for the person", c["waiting"])
 m[4].metric("Total feedback", c["total"])
+
+ex1, ex2 = st.columns([1, 2])
+ex1.download_button("⬇️ Export feedback_log.csv", data=to_csv_bytes(build_export(conn)),
+                    file_name=f"feedback_log_{date.today():%Y-%m-%d}.csv", mime="text/csv",
+                    use_container_width=True, disabled=c["total"] == 0)
+ex2.caption("For the **AI Data Analyst** (Project 1): one row per feedback, **no names, phone numbers or "
+            "messages**. Referred cases keep only their date and the word *sensitive*. "
+            "Try: *How many feedback per partner?* · *How many rows where overdue is yes?*")
 
 # --- filters + queue -------------------------------------------------------------------------
 f = st.columns(4)
