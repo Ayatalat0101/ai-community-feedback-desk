@@ -19,8 +19,11 @@ SAMPLES = ROOT / "data" / "sample_feedback.csv"
 
 STATUS_LABEL = {
     "new": "🆕 New", "waiting_for_info": "⏳ Waiting for info", "draft_ready": "📝 Draft ready",
-    "referred": "🔒 Referred", "needs_rework": "↩️ Needs rework", "approved": "✅ Approved", "closed": "📁 Closed",
+    "referred": "🔒 Referred", "needs_rework": "↩️ Needs rework", "approved": "✅ Approved",
+    "delivered": "📬 Delivered", "closed": "📁 Closed",
 }
+DELIVERY_LABEL = {"phone_call": "☎️ call-back", "in_person": "🧍 in person", "web": "🌐 read online",
+                  "confidential": "🔒 confidential contact"}
 PRIORITY_RANK = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
 PRIORITY_ICON = {"Critical": "🟣", "High": "🔴", "Medium": "🟠", "Low": "🟢"}
 CHANNEL_LABEL = {"web": "🌐 Web form", "hotline": "☎️ Hotline", "in_person": "🧍 In person"}
@@ -78,6 +81,20 @@ def pipeline() -> dict:
         return {}
     st.session_state.ai_used = used + 1
     return pipe
+
+
+ROLE_LABEL = {"officer": "Feedback officer", "focal_point": "Safeguarding focal point"}
+
+
+def role_picker() -> str:
+    """The demo role, shared by the staff pages. A widget's own state is dropped when
+    you move to another page, so the choice is kept in a plain session key."""
+    st.session_state.setdefault("_role", "officer")
+    roles = list(ROLE_LABEL)
+    choice = st.sidebar.radio("Role (demo)", roles, index=roles.index(st.session_state._role),
+                              format_func=ROLE_LABEL.get, key="role_widget")
+    st.session_state._role = choice
+    return choice
 
 
 def show_text(text: str) -> None:

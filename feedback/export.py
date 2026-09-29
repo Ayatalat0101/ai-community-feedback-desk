@@ -27,7 +27,7 @@ from .store import events_for, list_tickets
 
 COLUMNS = ["reference", "date", "month", "channel", "language", "governorate", "partner", "item",
            "distribution_id", "distribution_status", "category", "priority", "rule", "status",
-           "days_open", "target_days", "overdue"]
+           "days_open", "target_days", "overdue", "reply_delivered", "delivered_via"]
 RESOLVED_EVENTS = {"approved", "edited_and_approved", "closed"}
 
 
@@ -65,6 +65,9 @@ def build_export(conn: sqlite3.Connection, now: datetime | None = None) -> pd.Da
             "category": t["category"], "priority": t["priority"], "rule": rule or None, "status": t["status"],
             "days_open": days, "target_days": target,
             "overdue": ("yes" if days > target else "no") if target is not None else None,
+            # closing the loop: did the person actually hear the answer?
+            "reply_delivered": "yes" if t["status"] == "delivered" or t["delivered_via"] else "no",
+            "delivered_via": t["delivered_via"],
         })
     return pd.DataFrame(rows, columns=COLUMNS)
 

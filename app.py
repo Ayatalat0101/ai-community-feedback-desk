@@ -19,5 +19,6 @@ st.set_page_config(page_title="Community Feedback Desk", page_icon="💬", layou
 pages = st.navigation([
     st.Page("views/give_feedback.py", title="Give feedback", icon="💬", default=True),
     st.Page("views/dashboard.py", title="Feedback dashboard", icon="🗂️"),
+    st.Page("views/callbacks.py", title="Call-back list", icon="📞"),
 ])
 pages.run()

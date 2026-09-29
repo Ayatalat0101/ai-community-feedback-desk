@@ -11,6 +11,7 @@ import streamlit as st
 from feedback import agent
 from feedback.agent import ActionError
 from feedback.models import GOVERNORATES, validate_form
+from feedback.customer_view import person_view
 from feedback.distributions import AR
 from ui import CHANNEL_LABEL, CSS, ai_enabled, get_conn, pipeline, sample_rows, show_text
 
@@ -20,8 +21,8 @@ conn = get_conn()
 FIELDS = {"channel": "Channel", "name": "Name", "phone": "Phone", "distribution_id": "Distribution",
           "governorate": "Governorate", "message": "Message"}
 TEXT = {   # what the person reads after sending, in the language of their feedback
-    "thanks": {"ar": "شكراً لك. رقمك المرجعي **{ref}**، احتفظ به.",
-               "en": "Thank you. Your reference is **{ref}**. Please keep it."},
+    "thanks": {"ar": "شكراً لك. رقمك المرجعي **{ref}**، احتفظ به لتتابع الرد.",
+               "en": "Thank you. Your reference is **{ref}**. Keep it to follow the reply."},
     "refer_confidential": {"ar": "سيتواصل معك أحد أفراد فريقنا المدرَّبين بشكل سري.",
                            "en": "A trained member of our team will contact you confidentially."},
     "draft_response": {"ar": "فريقنا يراجع ملاحظتك وسيرد عليك.",
@@ -30,6 +31,8 @@ TEXT = {   # what the person reads after sending, in the language of their feedb
     "pick": {"ar": "اختر التوزيع:", "en": "Choose the distribution:"},
     "or_type": {"ar": "أو اكتب جوابك", "en": "Or type your answer"},
     "send": {"ar": "إرسال الجواب", "en": "Send answer"},
+    "reply": {"ar": "رد الفريق:", "en": "Reply from the team:"},
+    "ref": {"ar": "الملاحظة", "en": "Feedback"},
 }
 for k in ("f_name", "f_phone", "f_dst", "f_message"):
     st.session_state.setdefault(k, "")
@@ -37,10 +40,14 @@ st.session_state.setdefault("f_gov", "")
 st.session_state.setdefault("f_channel", "web")
 st.session_state.setdefault("form_errors", {})
 st.session_state.setdefault("last", None)
+st.session_state.setdefault("my_refs", [])          # feedback sent from this browser session
+st.session_state.setdefault("tracked", None)
 
 
 def remember(out) -> None:
     t = out.ticket
+    if t["ref"] not in st.session_state.my_refs:
+        st.session_state.my_refs.insert(0, t["ref"])
     st.session_state.last = {"ref": t["ref"], "action": out.action, "question": out.question,
                              "options": out.options, "lang": t["language"] or "ar"}
 
@@ -67,52 +74,98 @@ if ai_enabled():
     st.caption("🤖 Feedback is sorted and draft replies are written with Google Gemini. Sensitive reports are "
                "never sent to it, and a staff member reviews every reply.")
 
-st.selectbox("Try an example (demo)", [""] + [f"{r['id']} · {r['message'][:60]}" for r in sample_rows()],
-             key="example", on_change=fill_example)
+send_tab, track_tab = st.tabs(["💬 Give feedback · أرسل ملاحظة", "🔎 Track my feedback · تابع ملاحظتك"])
 
-with st.form("feedback_form"):
-    c1, c2, c3 = st.columns(3)
-    c1.selectbox("Channel", list(CHANNEL_LABEL), format_func=CHANNEL_LABEL.get, key="f_channel",
-                 help="Hotline operators and volunteers enter feedback on behalf of the person.")
-    c2.text_input("Name (optional) · الاسم (اختياري)", key="f_name", max_chars=60)
-    c3.text_input("Phone for a call back (optional) · رقم للتواصل", key="f_phone", placeholder="0591234567")
-    c4, c5 = st.columns(2)
-    c4.selectbox("Governorate (optional) · المحافظة", [""] + GOVERNORATES, key="f_gov",
-                 format_func=lambda g: f"{g} · {AR[g]}" if g else "—")
-    c5.text_input("Distribution number (optional) · رقم التوزيع", key="f_dst", placeholder="DST-017")
-    st.text_area("Feedback * · الملاحظة", key="f_message", height=130,
-                 placeholder="اكتب ما حدث بجملة أو جملتين. / Describe what happened in a sentence or two.")
-    sent = st.form_submit_button("Send · إرسال", type="primary")
+with send_tab:
+    st.selectbox("Try an example (demo)", [""] + [f"{r['id']} · {r['message'][:60]}" for r in sample_rows()],
+                 key="example", on_change=fill_example)
 
-if sent:
-    sub, errors = validate_form(channel=st.session_state.f_channel, name=st.session_state.f_name,
-                                phone=st.session_state.f_phone, distribution_id=st.session_state.f_dst,
-                                governorate=st.session_state.f_gov, message=st.session_state.f_message)
-    st.session_state.form_errors = errors
-    if sub:
-        remember(agent.submit(conn, sub, **pipeline()))
+    with st.form("feedback_form"):
+        c1, c2, c3 = st.columns(3)
+        c1.selectbox("Channel", list(CHANNEL_LABEL), format_func=CHANNEL_LABEL.get, key="f_channel",
+                     help="Hotline operators and volunteers enter feedback on behalf of the person.")
+        c2.text_input("Name (optional) · الاسم (اختياري)", key="f_name", max_chars=60)
+        c3.text_input("Phone for a call back (optional) · رقم للتواصل", key="f_phone", placeholder="0591234567")
+        c4, c5 = st.columns(2)
+        c4.selectbox("Governorate (optional) · المحافظة", [""] + GOVERNORATES, key="f_gov",
+                     format_func=lambda g: f"{g} · {AR[g]}" if g else "—")
+        c5.text_input("Distribution number (optional) · رقم التوزيع", key="f_dst", placeholder="DST-017")
+        st.text_area("Feedback * · الملاحظة", key="f_message", height=130,
+                     placeholder="اكتب ما حدث بجملة أو جملتين. / Describe what happened in a sentence or two.")
+        sent = st.form_submit_button("Send · إرسال", type="primary")
 
-for field, msg in st.session_state.form_errors.items():
-    st.error(f"**{FIELDS.get(field, field)}:** {msg}")
+    if sent:
+        sub, errors = validate_form(channel=st.session_state.f_channel, name=st.session_state.f_name,
+                                    phone=st.session_state.f_phone, distribution_id=st.session_state.f_dst,
+                                    governorate=st.session_state.f_gov, message=st.session_state.f_message)
+        st.session_state.form_errors = errors
+        if sub:
+            remember(agent.submit(conn, sub, **pipeline()))
 
-last = st.session_state.last
-if last:
-    lang = last["lang"] if last["lang"] in ("ar", "en") else "ar"
-    st.success(TEXT["thanks"][lang].format(ref=last["ref"]))
-    if last["action"] in ("refer_confidential", "draft_response"):
-        st.info(TEXT[last["action"]][lang])
-    elif last["action"] == "ask_for_info":
-        st.warning(TEXT["one_more"][lang], icon="❓")
-        show_text(last["question"])
-        if last["options"]:
-            st.markdown(TEXT["pick"][lang])
-            for i, opt in enumerate(last["options"]):
-                st.button(opt, key=f"opt_{last['ref']}_{i}", on_click=answer, args=(last["ref"], opt),
-                          use_container_width=True)
-        with st.form(f"follow_up_{last['ref']}", clear_on_submit=True):
-            typed = st.text_input(TEXT["or_type"][lang])
-            if st.form_submit_button(TEXT["send"][lang]):
-                answer(last["ref"], typed)
-                st.rerun()
-        if err := st.session_state.pop("follow_error", None):
-            st.error(err)
+    for field, msg in st.session_state.form_errors.items():
+        st.error(f"**{FIELDS.get(field, field)}:** {msg}")
+
+    last = st.session_state.last
+    if last:
+        lang = last["lang"] if last["lang"] in ("ar", "en") else "ar"
+        st.success(TEXT["thanks"][lang].format(ref=last["ref"]))
+        if last["action"] in ("refer_confidential", "draft_response"):
+            st.info(TEXT[last["action"]][lang])
+        elif last["action"] == "ask_for_info":
+            st.warning(TEXT["one_more"][lang], icon="❓")
+            show_text(last["question"])
+            if last["options"]:
+                st.markdown(TEXT["pick"][lang])
+                for i, opt in enumerate(last["options"]):
+                    st.button(opt, key=f"opt_{last['ref']}_{i}", on_click=answer, args=(last["ref"], opt),
+                              use_container_width=True)
+            with st.form(f"follow_up_{last['ref']}", clear_on_submit=True):
+                typed = st.text_input(TEXT["or_type"][lang])
+                if st.form_submit_button(TEXT["send"][lang]):
+                    answer(last["ref"], typed)
+                    st.rerun()
+            if err := st.session_state.pop("follow_error", None):
+                st.error(err)
+
+
+def show_view(view, where: str) -> None:
+    """One feedback, as the person may see it, in the language of their feedback."""
+    lang = view.language
+    st.markdown(f"**{TEXT['ref'][lang]} {view.ref}**")
+    icon = {"answered": "✅", "confidential": "🔒", "waiting": "❓", "closed": "📁"}.get(view.state, "⏳")
+    st.info(view.status_text, icon=icon)
+    if view.reply:
+        st.markdown(TEXT["reply"][lang])
+        show_text(view.reply)
+    if view.question:
+        show_text(view.question)
+        for i, opt in enumerate(view.options):
+            st.button(opt, key=f"{where}_{view.ref}_{i}", on_click=answer, args=(view.ref, opt),
+                      use_container_width=True)
+
+
+with track_tab:
+    if st.session_state.my_refs:
+        st.markdown("**Your feedback from this visit · ملاحظاتك في هذه الزيارة**")
+        for ref in st.session_state.my_refs:
+            with st.expander(ref, expanded=ref == st.session_state.my_refs[0]):
+                view = person_view(conn, ref, trusted=True)
+                if view:
+                    show_view(view, "mine")
+                else:
+                    st.caption("This feedback no longer exists (the demo data was reset).")
+        st.divider()
+    st.markdown("**Look up your feedback · ابحث عن ملاحظتك**")
+    with st.form("track_form"):
+        t1, t2 = st.columns(2)
+        ref_in = t1.text_input("Reference · الرقم المرجعي", placeholder="FB-0007")
+        phone_in = t2.text_input("Phone you gave · رقم الهاتف الذي كتبته", placeholder="0591234567")
+        if st.form_submit_button("Find · بحث"):
+            st.session_state.tracked = (ref_in, phone_in)
+    if st.session_state.tracked:
+        view = person_view(conn, *st.session_state.tracked)
+        if view:
+            show_view(view, "lookup")
+        else:     # the same message whether the reference is wrong or the phone is: nothing to discover
+            st.error("We could not find feedback with this reference and phone number. Check both. "
+                     "/ لم نجد ملاحظة بهذا الرقم المرجعي ورقم الهاتف. تأكد منهما.")

@@ -19,17 +19,16 @@ from feedback.agent import FOCAL_POINT, OFFICER, ActionError
 from feedback.export import build_export, to_csv_bytes
 from feedback.models import Submission
 from feedback.store import counts, events_for, get_ticket, list_tickets, reset_all
-from ui import (CHANNEL_LABEL, CSS, PRIORITY_ICON, PRIORITY_RANK, STATUS_LABEL, ai_enabled, distribution_card,
-                get_conn, sample_rows, show_text)
+from ui import (CHANNEL_LABEL, CSS, DELIVERY_LABEL, PRIORITY_ICON, PRIORITY_RANK, ROLE_LABEL, STATUS_LABEL,
+                ai_enabled, distribution_card, get_conn, role_picker, sample_rows, show_text)
 
 st.markdown(CSS, unsafe_allow_html=True)
 conn = get_conn()
 st.session_state.setdefault("selected", None)
-ROLE_LABEL = {OFFICER: "Feedback officer", FOCAL_POINT: "Safeguarding focal point"}
 
 # --- sidebar: role, reviewer, demo data ---------------------------------------------------
+role = role_picker()
 with st.sidebar:
-    role = st.radio("Role (demo)", list(ROLE_LABEL), format_func=ROLE_LABEL.get, key="role")
     reviewer = st.text_input("Your name", value="Aya", max_chars=40).strip() or "Staff"
     st.divider()
     st.caption("**Demo data**")
@@ -53,12 +52,13 @@ st.caption(f"Viewing as **{ROLE_LABEL[role]}**. "
               else "  \nAI: off. No API key set, so the rules and templates are used."))
 
 c = counts(conn)
-m = st.columns(5)
+m = st.columns(6)
 m[0].metric("🟣 Critical open", c["critical"])
 m[1].metric("🔴 High open", c["high"])
 m[2].metric("📝 Drafts to review", c["drafts"])
 m[3].metric("⏳ Waiting for the person", c["waiting"])
-m[4].metric("Total feedback", c["total"])
+m[4].metric("📞 Replies to deliver", c["to_deliver"], help="Approved, but the person has not heard the answer yet.")
+m[5].metric("Total feedback", c["total"])
 
 ex1, ex2 = st.columns([1, 2])
 ex1.download_button("⬇️ Export feedback_log.csv", data=to_csv_bytes(build_export(conn)),
@@ -82,7 +82,7 @@ if not tickets:
     st.stop()
 
 hidden = lambda t: t["restricted"] and role != FOCAL_POINT
-tickets.sort(key=lambda t: (t["status"] in ("approved", "closed"), PRIORITY_RANK.get(t["priority"], 4),
+tickets.sort(key=lambda t: (t["status"] in ("approved", "delivered", "closed"), PRIORITY_RANK.get(t["priority"], 4),
                             -int(t["ref"][3:])))
 table = pd.DataFrame([{
     "Ref": t["ref"], "Received (UTC)": t["created_at"][5:16].replace("T", " "),
@@ -166,9 +166,14 @@ if t["status"] in ("draft_ready", "needs_rework", "referred"):
         act(agent.refer, reason, done="Referred confidentially")
     if b[3].button("📁 Close", use_container_width=True):
         act(agent.close, reason, done="Closed")
-elif t["status"] == "approved":
+elif t["status"] in ("approved", "delivered"):
     st.markdown("**✅ Approved reply** (reviewed by a person)")
     show_text(t["draft_response"])
+    if t["status"] == "approved":
+        st.info("📞 Not delivered yet. Deliver it from the **Call-back list** page, or the person reads it "
+                "on **Track my feedback**.")
+    else:
+        st.success(f"📬 Delivered: {DELIVERY_LABEL.get(t['delivered_via'], t['delivered_via'])}")
     if st.button("📁 Close"):
         act(agent.close, "", done="Closed")
 elif t["status"] == "waiting_for_info":

@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .models import Category, Channel, Priority, Status, Submission, normalise_dst
+from .models import Category, Channel, DeliveryMethod, Priority, Status, Submission, normalise_dst
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS feedback (
@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS feedback (
     draft_response    TEXT,
     referral_reason   TEXT,
     reviewer_note     TEXT,
-    planner           TEXT
+    planner           TEXT,
+    delivered_via     TEXT
 );
 CREATE TABLE IF NOT EXISTS feedback_events (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,8 +68,12 @@ CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
 
 EDITABLE = {"language", "message", "distribution_id", "governorate", "partner", "item",
             "category", "category_reason", "priority", "priority_rule", "status", "restricted",
-            "missing", "options", "draft_response", "referral_reason", "reviewer_note", "planner"}
-ENUM_FIELDS = {"status": Status, "category": Category, "priority": Priority}
+            "missing", "options", "draft_response", "referral_reason", "reviewer_note", "planner",
+            "delivered_via"}
+ENUM_FIELDS = {"status": Status, "category": Category, "priority": Priority, "delivered_via": DeliveryMethod}
+# Columns added after the first release. connect() adds them to an older feedback.db,
+# so updating the code never forces anyone to delete their data.
+MIGRATIONS = {"delivered_via": "TEXT"}
 JSON_FIELDS = ("missing", "options")
 
 
@@ -85,6 +90,11 @@ def connect(path: str | Path = "feedback.db") -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row                 # rows behave like dicts
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    existing = {r["name"] for r in conn.execute("PRAGMA table_info(feedback)")}
+    with conn:
+        for column, kind in MIGRATIONS.items():
+            if column not in existing:
+                conn.execute(f"ALTER TABLE feedback ADD COLUMN {column} {kind}")     # names are fixed above
     return conn
 
 
@@ -180,11 +190,12 @@ def reset_all(conn: sqlite3.Connection) -> None:
 def counts(conn: sqlite3.Connection) -> dict[str, int]:
     """Numbers for the dashboard header."""
     q = lambda sql: conn.execute(sql).fetchone()[0]
-    open_ = "status NOT IN ('approved', 'closed')"
+    open_ = "status NOT IN ('approved', 'delivered', 'closed')"
     return {
         "critical": q(f"SELECT COUNT(*) FROM feedback WHERE priority = 'Critical' AND {open_}"),
         "high": q(f"SELECT COUNT(*) FROM feedback WHERE priority = 'High' AND {open_}"),
         "waiting": q("SELECT COUNT(*) FROM feedback WHERE status = 'waiting_for_info'"),
         "drafts": q("SELECT COUNT(*) FROM feedback WHERE status IN ('draft_ready', 'needs_rework')"),
+        "to_deliver": q("SELECT COUNT(*) FROM feedback WHERE status = 'approved'"),
         "total": q("SELECT COUNT(*) FROM feedback"),
     }

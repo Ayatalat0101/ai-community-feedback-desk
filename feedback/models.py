@@ -47,7 +47,8 @@ class Status(str, Enum):
     DRAFT_READY = "draft_ready"
     REFERRED = "referred"              # confidential referral to the safeguarding focal point
     NEEDS_REWORK = "needs_rework"
-    APPROVED = "approved"
+    APPROVED = "approved"              # a person approved the reply; the person has not heard it yet
+    DELIVERED = "delivered"            # the person received the reply (call, in person, or read it online)
     CLOSED = "closed"
 
 
@@ -58,6 +59,13 @@ class Category(str, Enum):
     ACCESS = "access"                  # distance, queue, disability, pregnancy
     APPRECIATION = "appreciation"      # thanks
     SENSITIVE = "sensitive"            # set ONLY by a referral, never by the classifier
+
+
+class DeliveryMethod(str, Enum):
+    PHONE_CALL = "phone_call"          # hotline operator called back and read the reply
+    IN_PERSON = "in_person"            # a volunteer told the person at a distribution point
+    WEB = "web"                        # the person read it on the Track page
+    CONFIDENTIAL = "confidential"      # the safeguarding focal point contacted the person
 
 
 class Priority(str, Enum):

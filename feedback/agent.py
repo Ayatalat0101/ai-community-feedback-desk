@@ -28,7 +28,7 @@ from typing import Callable
 from . import distributions, guardrail
 from .classifier import Classification, classify as rule_classify
 from .drafter import check_draft, question_for, template_draft
-from .models import Category, Status, normalise_dst
+from .models import Category, DeliveryMethod, Status, normalise_dst
 from .policy import assess, extract_facts
 from .store import create_ticket, get_ticket, update_ticket
 from .text import detect_language
@@ -45,6 +45,8 @@ ALLOWED = {
     "reject": {Status.DRAFT_READY},
     "refer": {Status.NEW, Status.WAITING_FOR_INFO, Status.DRAFT_READY, Status.NEEDS_REWORK},
     "close": set(Status) - {Status.CLOSED},
+    "deliver": {Status.APPROVED},
+    "no_answer": {Status.APPROVED},
 }
 
 
@@ -203,3 +205,25 @@ def refer(conn, ref: str, reviewer: str, reason: str, role: str = OFFICER) -> di
 def close(conn, ref: str, reviewer: str, note: str = "", role: str = OFFICER) -> dict:
     _guard(conn, ref, "close", role)
     return update_ticket(conn, ref, f"{role}:{reviewer}", "closed", note or None, status=Status.CLOSED)
+
+
+# --- closing the feedback loop: the person must actually hear the answer ----------------------
+def deliver(conn, ref: str, staff: str, method: str, role: str = OFFICER) -> dict:
+    """Record that the person received the approved reply (call-back, in person, confidential contact)."""
+    t = _guard(conn, ref, "deliver", role)
+    method = DeliveryMethod(method)
+    if t["restricted"] and method is not DeliveryMethod.CONFIDENTIAL:
+        raise ActionError("Referred cases are answered only by confidential contact.")
+    return update_ticket(conn, ref, f"{role}:{staff}", "reply_delivered", method.value,
+                         status=Status.DELIVERED, delivered_via=method)
+
+
+def no_answer(conn, ref: str, staff: str, note: str = "", role: str = OFFICER) -> dict:
+    """A call-back that did not reach the person: logged, the reply stays waiting to be delivered."""
+    _guard(conn, ref, "no_answer", role)
+    return update_ticket(conn, ref, f"{role}:{staff}", "call_attempt_no_answer", note or None)
+
+
+def call_attempts(conn, ref: str) -> int:
+    from .store import events_for
+    return sum(e["event"] == "call_attempt_no_answer" for e in events_for(conn, ref))
