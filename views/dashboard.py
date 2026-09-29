@@ -19,8 +19,8 @@ from feedback.agent import FOCAL_POINT, OFFICER, ActionError
 from feedback.export import build_export, to_csv_bytes
 from feedback.models import Submission
 from feedback.store import counts, events_for, get_ticket, list_tickets, reset_all
-from ui import (CHANNEL_LABEL, CSS, PRIORITY_ICON, PRIORITY_RANK, STATUS_LABEL, distribution_card, get_conn,
-                sample_rows, show_text)
+from ui import (CHANNEL_LABEL, CSS, PRIORITY_ICON, PRIORITY_RANK, STATUS_LABEL, ai_enabled, distribution_card,
+                get_conn, sample_rows, show_text)
 
 st.markdown(CSS, unsafe_allow_html=True)
 conn = get_conn()
@@ -33,7 +33,8 @@ with st.sidebar:
     reviewer = st.text_input("Your name", value="Aya", max_chars=40).strip() or "Staff"
     st.divider()
     st.caption("**Demo data**")
-    if st.button("Load the sample feedback", use_container_width=True):
+    if st.button("Load the sample feedback", use_container_width=True,
+                 help="Uses the rules and templates, so 23 messages don't use up the free AI quota."):
         for r in sample_rows():
             agent.submit(conn, Submission(message=r["message"], channel=r["channel"]))
         st.toast(f"Loaded {len(sample_rows())} sample messages")
@@ -47,7 +48,9 @@ with st.sidebar:
 st.title("🗂️ Feedback dashboard")
 st.caption(f"Viewing as **{ROLE_LABEL[role]}**. "
            + ("Referred cases are hidden from this role." if role == OFFICER
-              else "You can read and act on referred (sensitive) cases."))
+              else "You can read and act on referred (sensitive) cases.")
+           + ("  \nAI: 🤖 Gemini classifier + drafter (rules and templates as fallback)." if ai_enabled()
+              else "  \nAI: off. No API key set, so the rules and templates are used."))
 
 c = counts(conn)
 m = st.columns(5)

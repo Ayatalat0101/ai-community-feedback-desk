@@ -12,7 +12,7 @@ from feedback import agent
 from feedback.agent import ActionError
 from feedback.models import GOVERNORATES, validate_form
 from feedback.distributions import AR
-from ui import CHANNEL_LABEL, CSS, get_conn, pipeline, sample_rows, show_text
+from ui import CHANNEL_LABEL, CSS, ai_enabled, get_conn, pipeline, sample_rows, show_text
 
 st.markdown(CSS, unsafe_allow_html=True)
 conn = get_conn()
@@ -63,6 +63,9 @@ def fill_example():
 st.title("💬 Give feedback · شاركنا ملاحظتك")
 st.caption("A fictional feedback desk for the aid distributions in Project 1. Please use invented details only. "
            "Write in Arabic or English: you will get the answer in the same language.")
+if ai_enabled():
+    st.caption("🤖 Feedback is sorted and draft replies are written with Google Gemini. Sensitive reports are "
+               "never sent to it, and a staff member reviews every reply.")
 
 st.selectbox("Try an example (demo)", [""] + [f"{r['id']} · {r['message'][:60]}" for r in sample_rows()],
              key="example", on_change=fill_example)

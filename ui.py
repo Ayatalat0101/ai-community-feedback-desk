@@ -48,9 +48,36 @@ def get_conn():
     return connect(DB_PATH)
 
 
+MAX_AI_FEEDBACK_PER_SESSION = 20      # protects the free API quota on the public demo
+
+
+@st.cache_resource
+def _llm_pipeline() -> dict:
+    """Built once per server from .streamlit/secrets.toml, env vars, or the Cloud secrets box.
+    No key -> {} -> rules + templates."""
+    from feedback.config import load_secrets
+    from feedback.llm import build_pipeline
+    try:
+        secrets = dict(st.secrets)
+    except Exception:                      # no secrets file at all
+        secrets = {}
+    return build_pipeline({**load_secrets(), **secrets})
+
+
+def ai_enabled() -> bool:
+    return bool(_llm_pipeline())
+
+
 def pipeline() -> dict:
-    """Classifier and drafter. Stage 4: rules + templates. Stage 6 plugs Gemini in here."""
-    return {}
+    """Classifier + drafter for one feedback: Gemini (-> Groq) when a key is set and this
+    browser session is under its AI limit, otherwise rules + templates. Referred
+    feedback never reaches it: the guardrail runs first inside the agent."""
+    pipe = _llm_pipeline()
+    used = st.session_state.get("ai_used", 0)
+    if not pipe or used >= MAX_AI_FEEDBACK_PER_SESSION:
+        return {}
+    st.session_state.ai_used = used + 1
+    return pipe
 
 
 def show_text(text: str) -> None:

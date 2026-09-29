@@ -139,13 +139,20 @@ def body_key(category: Category, rule: str, lookup: Lookup, message: str) -> str
         category, "info_general")
 
 
-def template_draft(message: str, category: Category, rule: str, language: str, lookup: Lookup) -> str:
+def approved_body(message: str, category: Category, rule: str, language: str, lookup: Lookup) -> str:
+    """The reply's content without greeting/closing. The LLM drafter (stage 6) is
+    given exactly this as the only commitments it may make."""
     lang = language if language in ("en", "ar") else "ar"
     fields = _d(lookup.distribution, lang)
     partner = lookup.hints.one("partners")
     team = {"en": "the distribution team", "ar": "فريق التوزيع"}[lang]
     fields["partner_or_team"] = fields.get("partner") or (AR.get(partner, partner) if lang == "ar" else partner) or team
-    body = BODY[body_key(category, rule, lookup, message)][lang].format(**fields)
+    return BODY[body_key(category, rule, lookup, message)][lang].format(**fields)
+
+
+def template_draft(message: str, category: Category, rule: str, language: str, lookup: Lookup) -> str:
+    lang = language if language in ("en", "ar") else "ar"
+    body = approved_body(message, category, rule, lang, lookup)
     return f"{GREETING[lang]}\n\n{body}\n\n{CLOSING[lang].format(team=TEAM[lang])}"
 
 
