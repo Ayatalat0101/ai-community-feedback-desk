@@ -1,0 +1,21 @@
+# Secrets: everything in .streamlit/ except the example (also catches secrets.toml.txt)
+.streamlit/*
+!.streamlit/secrets.toml.example
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local data created at runtime
+*.db
+*.sqlite3
+exports/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
