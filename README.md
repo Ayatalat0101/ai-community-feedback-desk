@@ -115,7 +115,7 @@ cd ai-community-feedback-desk
 python -m venv .venv
 source .venv/Scripts/activate      # Windows Git Bash  (PowerShell: .venv\Scripts\activate · macOS/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
-python -m pytest -q                # 302 passed
+python -m pytest -q                # 302 passed (301 + 1 skipped if ai-data-analyst is not in the parent folder)
 streamlit run app.py
 ```
 
