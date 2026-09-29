@@ -2,6 +2,7 @@
 
 > Design sheet completed **before any code**, as required by the AI Systems Building Challenge.
 > **Continues Project 1** ([AI Data Analyst](https://github.com/Ayatalat0101/ai-data-analyst)): same aid distributions, same partners, same data file.
+> Arabic version: [PROJECT_PLAN_AR.md](PROJECT_PLAN_AR.md)
 > Stack: Python · Streamlit · SQLite · Pydantic · Gemini (structured output + drafting) · rule fallback
 > Languages: feedback in **Arabic first** (including Gaza dialect) and English; staff screens in English.
 
