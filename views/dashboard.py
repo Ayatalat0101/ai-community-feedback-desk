@@ -56,9 +56,9 @@ m = st.columns(6)
 m[0].metric("🟣 Critical open", c["critical"])
 m[1].metric("🔴 High open", c["high"])
 m[2].metric("📝 Drafts to review", c["drafts"])
-m[3].metric("⏳ Waiting for the person", c["waiting"])
-m[4].metric("📞 Replies to deliver", c["to_deliver"], help="Approved, but the person has not heard the answer yet.")
-m[5].metric("Total feedback", c["total"])
+m[3].metric("⏳ Waiting for info", c["waiting"], help="Waiting for the person to answer our question.")
+m[4].metric("📞 To deliver", c["to_deliver"], help="Approved, but the person has not heard the answer yet.")
+m[5].metric("Total", c["total"])
 
 ex1, ex2 = st.columns([1, 2])
 ex1.download_button("⬇️ Export feedback_log.csv", data=to_csv_bytes(build_export(conn)),

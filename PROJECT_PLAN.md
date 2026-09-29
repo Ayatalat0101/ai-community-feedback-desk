@@ -210,3 +210,16 @@ flowchart LR
 6. Gemini classifier + drafter with fallback → T15
 7. Track my feedback
 8. README, test results, screenshots, deploy
+
+---
+
+## Appendix: what changed during the build
+
+The sections above are the plan as written before coding. Added while building:
+
+- **Closing the loop (stage 7):** a `delivered` status after `approved`, a **Call-back list** page for hotline operators, and `reply_delivered` / `delivered_via` in the export. An approved reply the person never hears is not an answer.
+- **Track my feedback:** reference + phone number; referred cases never show their reply online.
+- **Held-out evaluation:** `data/holdout_feedback.csv`, 14 new messages never used to tune the rules. Rules: 8/14 categories, 0/3 new sensitive wordings. This is why the LLM may add referrals.
+- **Project 1 fix:** loading the export revealed a crash in the AI Data Analyst on True/False columns with blanks; fixed there with a regression test.
+- **Database upgrades in place:** `connect()` adds new columns to an existing `feedback.db`.
+- **Key setup:** `setup_key.py` and a plain explanation when no key is found (lessons from the previous version).
