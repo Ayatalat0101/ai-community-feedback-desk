@@ -9,7 +9,7 @@ Continues [AI Data Analyst](https://github.com/Ayatalat0101/ai-data-analyst) (Pr
 ![Gemini](https://img.shields.io/badge/LLM-Gemini%20%E2%86%92%20Groq%20%E2%86%92%20rules-2a78d6)
 ![Tests](https://img.shields.io/badge/tests-302%20passing-2ea44f)
 
-> **Live demo:** _added after deployment (see [Deploy](#deploy-on-streamlit-community-cloud))._
+> **Live demo:** _added after deployment (see [ai-community-feedback-desk](https://ai-community-feedback-desk-wvsurexypoxdjdi664wxdk.streamlit.app/))._
 > Project B of the *AI Systems Building Challenge* · [خطة المشروع بالعربي](PROJECT_PLAN_AR.md)
 
 ![Question with the real matching distributions as options](screenshots/01_question_with_options.png)
